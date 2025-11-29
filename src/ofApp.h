@@ -4,6 +4,7 @@
 #include "ofxGui.h"
 #include  "ofxAssimpModelLoader.h"
 #include "Octree.h"
+#include "ParticleSystem.h"
 #include <glm/gtx/intersect.hpp>
 
 
@@ -81,4 +82,29 @@ class ofApp : public ofBaseApp{
 		ofFile file;
 		string filename = "files/mars-terrain.txt";
 		// string filename = "files/moon-terrain.txt"; 
+
+		bool forward = false;
+		bool backward = false;
+		bool left = false;
+		bool right = false;
+		bool thrust = false;
+
+		float dt;
+
+		// Lander 
+		glm::vec3 landerPos = glm::vec3(0, 0, 0);
+		glm::vec3 landerVel = glm::vec3(0, 0, 0);
+		glm::vec3 landerAccel = glm::vec3(0, 0, 0);
+		glm::vec3 landerForce = glm::vec3(0, 0, 0);
+
+		float landerRotation = 0.0f;
+		float landerMass = 1.0f;
+		float damping = 0.99f;
+		float angularVel = 0.0f;
+		float angularAccel = 0.0f;
+		float angularForce = 0.0f;
+
+		// Other forces
+		GravityForce* gforce;
+		TurbulenceForce* tforce;
 };

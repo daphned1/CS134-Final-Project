@@ -37,9 +37,61 @@ void ofApp::setup(){
 	//
 	initLightingAndMaterials();
 
-	mars.loadModel("geo/mars-low-5x-v2.obj");
+	mars.loadModel("geo/moon-houdini.obj");
 	// mars.loadModel("geo/moon-houdini.obj");
 	mars.setScaleNormalization(false);
+
+	if (lander.loadModel("geo/LEM-combined.obj")) {
+		bLanderLoaded = true;
+		lander.setScaleNormalization(false);
+		lander.setPosition(0, 0, 0);
+		// cout << "number of meshes: " << lander.getNumMeshes() << endl;
+		bboxList.clear();
+		for (int i = 0; i < lander.getMeshCount(); i++) {
+			bboxList.push_back(Octree::meshBounds(lander.getMesh(i)));
+		}
+
+		//		lander.setRotation(1, 180, 1, 0, 0);
+
+				// We want to drag and drop a 3D object in space so that the model appears 
+				// under the mouse pointer where you drop it !
+				//
+				// Our strategy: intersect a plane parallel to the camera plane where the mouse drops the model
+				// once we find the point of intersection, we can position the lander/lander
+				// at that location.
+				//
+
+				// Setup our rays
+				//
+		glm::vec3 origin = cam.getPosition();
+		glm::vec3 camAxis = cam.getZAxis();
+		glm::vec3 mouseWorld = cam.screenToWorld(glm::vec3(mouseX, mouseY, 0));
+		glm::vec3 mouseDir = glm::normalize(mouseWorld - origin);
+		float distance;
+
+		bool hit = glm::intersectRayPlane(origin, mouseDir, glm::vec3(0, 0, 0), camAxis, distance);
+		if (hit) {
+			// find the point of intersection on the plane using the distance 
+			// We use the parameteric line or vector representation of a line to compute
+			//
+			// p' = p + s * dir;
+			//
+			glm::vec3 intersectPoint = origin + distance * mouseDir;
+
+			// Now position the lander's origin at that intersection point
+			//
+			glm::vec3 min = lander.getSceneMin();
+			glm::vec3 max = lander.getSceneMax();
+			float offset = (max.y - min.y) / 2.0;
+			lander.setPosition(intersectPoint.x, intersectPoint.y - offset, intersectPoint.z);
+
+			// set up bounding box for lander while we are at it
+			//
+			landerBounds = Box(Vector3(min.x, min.y, min.z), Vector3(max.x, max.y, max.z));
+		}
+	}
+
+	gforce = new GravityForce(ofVec3f(0, -2, 0));
 
 	// create sliders for testing
 	//
@@ -54,17 +106,6 @@ void ofApp::setup(){
 	octree.create(mars.getMesh(0), 20);
 	float endTime = ofGetElapsedTimeMillis();
 	float octreeBuildTime = endTime - startTime;
-
-	cout << "Octree Build Time: " << octreeBuildTime << " ms" << endl;
-
-	file.open(filename, ofFile::WriteOnly);
-	if (file.is_open()) {
-		file << "Octree Build Time: " << octreeBuildTime << " ms\n";
-		file.close();
-	}
-	else {
-		cout << "Unable to open/write to file." << endl;
-	}
 	
 	cout << "Number of Verts: " << mars.getMesh(0).getNumVertices() << endl;
 
@@ -76,6 +117,55 @@ void ofApp::setup(){
 // incrementally update scene (animation)
 //
 void ofApp::update() {
+	/* -------------------------------------------------------------------------- */
+	/*                                   Physics                                  */
+	/* -------------------------------------------------------------------------- */
+	float frameRate = ofGetFrameRate();
+
+	if (frameRate > 0) {
+		dt = 1.0/frameRate;
+	}
+	else {
+		dt = 0.0f;
+	}
+
+	// Linear physics
+	landerPos += landerVel * dt;
+	landerAccel = (1 / landerMass) * landerForce;
+	landerVel += landerAccel * dt;
+	landerVel *= damping;
+
+	// Rotation
+	landerRotation += angularVel * dt;
+	angularAccel = (1 / landerMass) * angularForce;
+	angularVel += angularAccel * dt;
+	angularVel *= damping;
+
+	// Reset forces
+	landerForce = glm::vec3(0, 0, 0);
+	angularForce = 0.0f;
+
+	lander.setPosition(landerPos.x, landerPos.y, landerPos.z);
+	lander.setRotation(0, landerRotation, 0, 1, 0);
+
+	landerForce += gforce->getForce() * landerMass;
+
+	if (thrust) {
+		landerForce += glm::vec3(0, 10, 0);
+	}
+	if (forward) {
+		landerForce += glm::vec3(glm::rotate(glm::mat4(1.0), glm::radians(landerRotation), glm::vec3(0, 1, 0)) * glm::vec4(1, 0, 0, 1)) * 10;
+	}
+	if (backward) {
+		landerForce -= glm::vec3(glm::rotate(glm::mat4(1.0), glm::radians(landerRotation), glm::vec3(0, 1, 0)) * glm::vec4(1, 0, 0, 1)) * 10;
+	}
+	if (left) {
+		angularForce += 50;
+	}
+	if (right) {
+		angularForce -= 50;
+	}
+
 	if (collidedKeyPress) {
 		reverseCollision();
 	}
@@ -214,6 +304,21 @@ void ofApp::drawAxis(ofVec3f location) {
 
 
 void ofApp::keyPressed(int key) {
+	if (key == ' ') {
+		thrust = true;
+	}
+	if (key == OF_KEY_UP || key == 'w' || key == 'W') {
+    forward = true;
+  }
+  if (key == OF_KEY_DOWN || key == 's' || key == 'S') {
+    backward = true;
+  }
+  if (key == OF_KEY_LEFT || key == 'a' || key == 'A') {
+    left = true;
+  }
+  if (key == OF_KEY_RIGHT || key == 'd' || key == 'D') {
+    right = true;
+  }
 
 	switch (key) {
 	case 'B':
@@ -291,6 +396,21 @@ void ofApp::togglePointsDisplay() {
 }
 
 void ofApp::keyReleased(int key) {
+	if (key == ' ') {
+		thrust = false;
+	}
+	if (key == OF_KEY_UP || key == 'w' || key == 'W') {
+    forward = false;
+  }
+  if (key == OF_KEY_DOWN || key == 's' || key == 'S') {
+    backward = false;
+  }
+  if (key == OF_KEY_LEFT || key == 'a' || key == 'A') {
+    left = false;
+  }
+  if (key == OF_KEY_RIGHT || key == 'd' || key == 'D') {
+    right = false;
+  }
 
 	switch (key) {
 	
@@ -373,17 +493,6 @@ bool ofApp::raySelectWithOctree(ofVec3f &pointRet) {
 		pointRet = octree.mesh.getVertex(selectedNode.points[0]);
 	}
 
-	if (timingInfo) {
-		cout << "Ray Search Time: " << raySearchTime/1000.0 << " ms | Coordinates: (" << pointRet.x << ", " << pointRet.y << ", " << pointRet.z << ")" <<endl;
-		file.open(filename, ofFile::Append);
-		if (file.is_open()) {
-			file << "Ray Search Time: " << raySearchTime/1000.0 << " ms | Coordinates: (" << pointRet.x << ", " << pointRet.y << ", " << pointRet.z << ")\n";
-			file.close();
-		}
-		else {
-			cout << "Unable to open/write to file." << endl;
-		}
-	}
 	return pointSelected;
 }
 
