@@ -104,7 +104,8 @@ obj/msys2/Release/src/main.o: src/main.cpp \
  ../../../addons/ofxAssimpModelLoader/src/ofxAssimpTexture.h \
  ../../../addons/ofxAssimpModelLoader/src/ofxAssimpAnimation.h \
  src/Octree.h src/box.h src/vector3.h src/ray.h src/Util.h \
- src/ParticleSystem.h src/Particle.h
+ src/ParticleEmitter.h src/TransformObject.h src/ParticleSystem.h \
+ src/Particle.h
 ../../../libs/openFrameworks/ofMain.h:
 ../../../libs/openFrameworks/utils/ofConstants.h:
 ../../../libs/tess2/include/tesselator.h:
@@ -215,5 +216,7 @@ src/box.h:
 src/vector3.h:
 src/ray.h:
 src/Util.h:
+src/ParticleEmitter.h:
+src/TransformObject.h:
 src/ParticleSystem.h:
 src/Particle.h:

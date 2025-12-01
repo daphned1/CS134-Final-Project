@@ -4,7 +4,8 @@
 #include "ofxGui.h"
 #include  "ofxAssimpModelLoader.h"
 #include "Octree.h"
-#include "ParticleSystem.h"
+// #include "ParticleSystem.h"
+#include "ParticleEmitter.h"
 #include <glm/gtx/intersect.hpp>
 
 
@@ -38,6 +39,9 @@ class ofApp : public ofBaseApp{
 		bool raySelectWithOctree(ofVec3f &pointRet);
 		glm::vec3 getMousePointOnPlane(glm::vec3 p , glm::vec3 n);
 		void reverseCollision();
+		void getAGL();
+		void loadVbo();
+		void loadExplosionVbo();
 
 		ofEasyCam cam;
 		ofxAssimpModelLoader mars, lander;
@@ -53,7 +57,6 @@ class ofApp : public ofBaseApp{
 
 
 		ofxIntSlider numLevels;
-		ofxToggle timingInfo;
 		ofxPanel gui;
 
 		bool bAltKeyDown;
@@ -87,7 +90,11 @@ class ofApp : public ofBaseApp{
 		bool backward = false;
 		bool left = false;
 		bool right = false;
+
 		bool thrust = false;
+		bool thrusterOn = false;
+
+		bool exploded = false;
 
 		float dt;
 
@@ -104,7 +111,32 @@ class ofApp : public ofBaseApp{
 		float angularAccel = 0.0f;
 		float angularForce = 0.0f;
 
+		// Emitters
+		ParticleEmitter emitter;
+		ParticleEmitter explosionEmitter;
+
 		// Other forces
 		GravityForce* gforce;
 		TurbulenceForce* tforce;
+		ImpulseRadialForce* radialForce;
+		CyclicForce* cyclicForce;
+
+		// AGL
+		bool bAGL = false;
+		float altitude = 0.0f;
+
+		// Particle Emitters
+		// textures
+		//
+		ofTexture  particleTex;
+
+		// shaders
+		//
+		ofVbo vbo;
+		ofVbo explosionVBO;
+		ofShader shader;
+
+		// Light
+		ofLight keyLight, fillLight, rimLight, landerLight;
+		bool landerLightOn = true;
 };

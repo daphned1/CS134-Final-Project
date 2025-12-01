@@ -14,5 +14,9 @@
 		}
 	],
 	"openFrameworksProjectGeneratorVersion": "0.103.0",
-	"settings": {}
+	"settings": {
+		"files.associations": {
+			"iostream": "cpp"
+		}
+	}
 }
