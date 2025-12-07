@@ -42,10 +42,10 @@ class ofApp : public ofBaseApp{
 		void getAGL();
 		void loadVbo();
 		void loadExplosionVbo();
+		void switchCam(int camNum);
 
-		ofEasyCam cam;
+
 		ofxAssimpModelLoader mars, lander;
-		ofLight light;
 		Box boundingBox, landerBounds;
 		Box testBox;
 		vector<Box> colBoxList;
@@ -58,6 +58,9 @@ class ofApp : public ofBaseApp{
 
 		ofxIntSlider numLevels;
 		ofxPanel gui;
+		ofParameter<bool> landerLightOn;
+		ofParameter<bool> backgroundMusicOn;
+		ofParameter<string> camName;
 
 		bool bAltKeyDown;
 		bool bCtrlKeyDown;
@@ -138,5 +141,16 @@ class ofApp : public ofBaseApp{
 
 		// Light
 		ofLight keyLight, fillLight, rimLight, landerLight;
-		bool landerLightOn = true;
+
+		//images
+		ofImage backgroundImg;
+
+		//sounds
+		ofSoundPlayer backgroundSnd, thrusterSnd, explosionSnd, countdownSnd, gameOverSnd, forwardSnd, backwardSnd, turnSnd, successLandSnd;
+
+		//cameras
+		ofEasyCam mainCam;
+		ofCamera trackCam, landerCam, cabinCam;
+		ofCamera * activeCam = nullptr;
+		int currentCam = 1; 
 };

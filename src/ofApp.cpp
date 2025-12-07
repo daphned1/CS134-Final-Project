@@ -1,5 +1,4 @@
-
-//--------------------------------------------------------------
+﻿//--------------------------------------------------------------
 //
 //  Kevin M. Smith
 //
@@ -24,29 +23,31 @@ void ofApp::setup(){
 	bCtrlKeyDown = false;
 	bLanderLoaded = false;
 	bTerrainSelected = true;
+
 	ofSetWindowShape(1024, 768);
 	ofSetFrameRate(60);
-	cam.setDistance(10);
-	cam.setNearClip(.1);
-	cam.setFov(65.5);   // approx equivalent to 28mm in 35mm format
-	ofSetVerticalSync(true);
-	cam.disableMouseInput();
+
 	ofEnableSmoothing();
 	ofEnableDepthTest();
 
+	/* -------------------------------------------------------------------------- */
+	/*                           Load Texture                                     */
+	/* -------------------------------------------------------------------------- */
+
 	// texture loading
-	//
+
 	ofDisableArbTex();     // disable rectangular textures
 
 	// load textures
-	//
+
 	if (!ofLoadImage(particleTex, "images/dot.png")) {
 		cout << "Particle Texture File: images/dot.png not found" << endl;
 		ofExit();
 	}
 
-	// load the shader
-	//
+	/* -------------------------------------------------------------------------- */
+	/*                           Load Shader                                      */
+	/* -------------------------------------------------------------------------- */
 #ifdef TARGET_OPENGLES
 	shader.load("shaders_gles/shader");
 #else
@@ -54,10 +55,47 @@ void ofApp::setup(){
 #endif
 
 	/* -------------------------------------------------------------------------- */
+	/*                           Load Background Image                            */
+	/* -------------------------------------------------------------------------- */
+	backgroundImg.load("images/galaxy_bkgrd.png");
+
+	/* -------------------------------------------------------------------------- */
+	/*                           Load Sounds                                      */
+	/* -------------------------------------------------------------------------- */
+	backgroundSnd.load("sounds/spaceBackgroundSnd.mp3");
+	backgroundSnd.setLoop(true);
+	backgroundSnd.setVolume(0.2f);
+
+	explosionSnd.load("sounds/explosionSnd.mp3");
+	explosionSnd.setVolume(1.0f);
+
+	thrusterSnd.load("sounds/thrustSnd.mp3");
+	thrusterSnd.setLoop(true);
+	thrusterSnd.setVolume(1.0f);
+
+	forwardSnd.load("sounds/forwardSnd.mp3");
+	forwardSnd.setVolume(1.0f);
+
+	backwardSnd.load("sounds/backwardSnd.mp3");
+	backwardSnd.setVolume(1.0f);
+
+	countdownSnd.load("sounds/countdownSnd.mp3");
+	countdownSnd.setVolume(1.0f);
+
+	successLandSnd.load("sounds/successLand.mp3");
+	successLandSnd.setVolume(1.0f);
+
+	gameOverSnd.load("sounds/lostLifeSnd.mp3");
+	gameOverSnd.setLoop(true);
+
+	//turn on background sound
+	backgroundSnd.play();
+
+
+	/* -------------------------------------------------------------------------- */
 	/*                                 Load models                                */
 	/* -------------------------------------------------------------------------- */
-	mars.loadModel("geo/BigMoonDarker.obj");
-	// mars.loadModel("geo/moon-houdini.obj");
+	mars.loadModel("geo/BigMoonBaseBrighter.obj");
 	mars.setScaleNormalization(false);
 	
 
@@ -107,7 +145,9 @@ void ofApp::setup(){
 	explosionEmitter.setParticleRadius(20);
 	explosionEmitter.setMass(1);
 
-	//======================LIGHT SETUP==========================
+	/* -------------------------------------------------------------------------- */
+	/*                                 Light                                      */
+	/* -------------------------------------------------------------------------- */
 
 	ofSetGlobalAmbientColor(ofColor(100, 100, 100)); //white ambient light
 
@@ -139,30 +179,65 @@ void ofApp::setup(){
 
 	rimLight.enable();
 
-	landerLight.setDiffuseColor(ofFloatColor(3.0, 3.0, 3.0));
-	landerLight.setSpecularColor(ofFloatColor(1.0, 1.0, 1.0) * 2.0);
-	landerLight.setAttenuation(0.5, 0.001, 0.0);
-	landerLight.setPosition(landerPos);
+	landerLight.setup();
 	landerLight.setSpotlight();
-	landerLight.setSpotlightCutOff(20);
-	landerLight.setSpotConcentration(60);
-	landerLight.lookAt(landerPos - glm::vec3(0, 50, 0));
-	landerLight.enable();
+	landerLight.setSpotlightCutOff(60); // cone angle (in degrees)
+	landerLight.setSpotConcentration(30);
+	landerLight.setScale(5.0);
+	landerLight.setDiffuseColor(ofFloatColor(1.0, 0.95, 0.850));
+	landerLight.setSpecularColor(ofFloatColor(1.0, 0.95, 0.85));
+
+	
+	
+	/* -------------------------------------------------------------------------- */
+	/*                                 Cameras                                    */
+	/* -------------------------------------------------------------------------- */
+
+	//Main camera
+	mainCam.setDistance(10);
+	mainCam.setNearClip(.1);
+	mainCam.setFov(65.5); // approx equivalent to 28mm in 35mm format
+	ofSetVerticalSync(true);
+	mainCam.disableMouseInput();
+
+	glm::vec3 landerPos = lander.getPosition();
+	mainCam.setPosition(150, 78, 124);
+	mainCam.lookAt(landerPos);
+	
+
+	//Tracking camera
+	trackCam.setPosition(landerPos.x, landerPos.y + 20 , landerPos.z + 45);
+	trackCam.lookAt(landerPos);
+
+	//Lander Camera
+	landerCam.setPosition(landerPos.x, landerPos.y + 50 , landerPos.z);
+	landerCam.lookAt(glm::vec3(0,0,0));
+
+	// Cabin Camera
+	cabinCam.setPosition(landerPos.x, landerPos.y + 10, landerPos.z);
+	cabinCam.lookAt(glm::vec3(0, 0, 0));
+
+	//Set activeCam = mainCam
+	activeCam = &mainCam;
 
 	// setup rudimentary lighting 
+	//initLightingAndMaterials();
 
-	initLightingAndMaterials();
-
-//======================LIGHT SETUP==========================
-
-	// create sliders for testing
-	//
+	/* -------------------------------------------------------------------------- */
+	/*                                 GUI                                        */
+	/* -------------------------------------------------------------------------- */
 	gui.setup();
 	gui.add(numLevels.setup("Number of Octree Levels", 1, 1, 10));
 	bHide = false;
+	gui.add(landerLightOn.set("Lander Light On:", true));
+	gui.add(backgroundMusicOn.set("Background Music On:", true));
+	camName.set("Camera", "Fixed Camera (1)");
+	gui.add(camName);
 
-	//  Create Octree for testing.
-	//
+
+	/* -------------------------------------------------------------------------- */
+	/*                             octree for Testing                             */
+	/* -------------------------------------------------------------------------- */
 	ofMesh full;
 	for (int i = 0; i < mars.getMeshCount(); i++) {
 		full.append(mars.getMesh(i));
@@ -177,21 +252,42 @@ void ofApp::setup(){
  
 //--------------------------------------------------------------
 // incrementally update scene (animation)
-//
+//--------------------------------------------------------------
+
 void ofApp::update() {
+	/* -------------------------------------------------------------------------- */
+	/*                                   Cameras                                  */
+	/* -------------------------------------------------------------------------- */
+	if (currentCam == 2) {
+		ofVec3f currentPos = trackCam.getPosition();
+		ofVec3f targetPos = ofVec3f(landerPos.x, landerPos.y + 20, landerPos.z + 45);
+		trackCam.setPosition(currentPos.interpolate(targetPos, 0.1));
+		trackCam.lookAt(lander.getPosition());
+	}
+	else if (currentCam == 3) {
+		ofVec3f currentPos = landerCam.getPosition();
+		ofVec3f targetPos = ofVec3f(landerPos.x, landerPos.y + 50, landerPos.z);
+		landerCam.setPosition(currentPos.interpolate(targetPos, 0.1));
+		// ONBOARD CAM — attach to lander
+		landerCam.lookAt(lander.getPosition(), glm::vec3(0, 0, -1));
+	}
+	else if (currentCam == 4) {
+		ofVec3f currentPos = cabinCam.getPosition();
+		ofVec3f targetPos = ofVec3f(landerPos.x, landerPos.y + 10, landerPos.z);
+		cabinCam.setPosition(currentPos.interpolate(targetPos, 0.1));
+		cabinCam.lookAt(landerPos + glm::vec3(0, 10, 0) - glm::vec3(glm::rotate(glm::mat4(1.0), glm::radians(landerRotation), glm::vec3(0,1,0)) * glm::vec4(0,0,-1,1)) * 10);
+	}
+
 	/* -------------------------------------------------------------------------- */
 	/*                                  Emitters                                  */
 	/* -------------------------------------------------------------------------- */
 	landerPos = lander.getPosition();
 	emitter.position = glm::vec3(landerPos.x, landerPos.y - 1, landerPos.z);
 	explosionEmitter.position = landerPos;
-	landerLight.setPosition(landerPos);
-
+	
 	emitter.update();
 	explosionEmitter.update();
 	lander.update();
-
-	landerLight.lookAt(lander.getPosition() - glm::vec3(glm::rotate(glm::mat4(1.0), glm::radians(landerRotation), glm::vec3(0,1,0)) * glm::vec4(0,0,-1,1)) * 25 + glm::vec3(0, 5, 0) * 2);
 
 	/* -------------------------------------------------------------------------- */
 	/*                                   Physics                                  */
@@ -231,6 +327,7 @@ void ofApp::update() {
 		landerForce += glm::vec3(0, 10, 0);
 		if (!thrusterOn) {
 			emitter.start();
+			thrusterSnd.play();
 		}
 		thrusterOn = true;
 	}
@@ -238,21 +335,26 @@ void ofApp::update() {
 		if (thrusterOn) {
 			emitter.stop();
 			emitter.sys->reset();
+			thrusterSnd.stop();
 		}
 		thrusterOn = false;
 	}
 	if (forward) {
 		// landerForce += glm::vec3(glm::rotate(glm::mat4(1.0), glm::radians(landerRotation), glm::vec3(0, 1, 0)) * glm::vec4(1, 0, 0, 1)) * 10;
 		landerForce -= glm::vec3(glm::rotate(glm::mat4(1.0), glm::radians(landerRotation), glm::vec3(0,1,0)) * glm::vec4(0,0,-1,1)) * 10;
+		forwardSnd.play();
 	}
 	if (backward) {
 		landerForce += glm::vec3(glm::rotate(glm::mat4(1.0), glm::radians(landerRotation), glm::vec3(0,1,0)) * glm::vec4(0,0,-1,1)) * 10;
+		backwardSnd.play();
 	}
 	if (left) {
 		angularForce += 50;
+		turnSnd.play();
 	}
 	if (right) {
 		angularForce -= 50;
+		turnSnd.play();
 	}
 
 	// Get Altitude
@@ -278,6 +380,7 @@ void ofApp::update() {
 			// Add explosions
 			if (!exploded) {
 				explosionEmitter.start();
+				explosionSnd.play();
 			}
 			cout << "Too fast, exploded." << endl; 
 
@@ -294,11 +397,12 @@ void ofApp::update() {
 		}
 		else if (glm::length(landerVel) < 3) {
 			// Smooth landing
-			cout << "Smooth landing." << endl; 
+			cout << "Smooth landing." << endl;
+			successLandSnd.play();
 		}
 
 		// 1. Find lander box center
-		glm::vec3 landerBox = glm::vec3(bounds.center().x(), bounds.center().y(), bounds.center().z());
+			glm::vec3 landerBox = glm::vec3(bounds.center().x(), bounds.center().y(), bounds.center().z());
 
 		// 2. Find nearest collided terrain box
 		glm::vec3 terrainBox;
@@ -314,7 +418,7 @@ void ofApp::update() {
 		}
 
 		// 3. Add bounce
-		float bounce = 0.2;
+		float bounce = 0.1;
 
 		// 4. Find normal
 		glm::vec3 normal = glm::normalize(landerBox - terrainBox);
@@ -329,9 +433,25 @@ void ofApp::update() {
 	}
 
 }
+
 //--------------------------------------------------------------
 void ofApp::draw() {
-	ofBackground(ofColor::black);
+
+	/* -------------------------------------------------------------------------- */
+	/*                                 Background                                 */
+	/* -------------------------------------------------------------------------- */
+	ofDisableDepthTest();
+	ofSetColor(255);
+	ofFill();
+	backgroundImg.draw(0, 0, ofGetWindowWidth(), ofGetWindowHeight());
+	for (int i = 0; i < 10; i++) {
+		ofDrawCircle(ofRandomWidth(), ofRandomHeight(), ofRandom(0.1, 2.5));
+	}
+	ofEnableDepthTest();
+
+	/* -------------------------------------------------------------------------- */
+	/*                                 Explosion                                  */
+	/* -------------------------------------------------------------------------- */
 	loadVbo();
 	loadExplosionVbo();
 
@@ -342,15 +462,35 @@ void ofApp::draw() {
 	else landerLight.disable();
 
 	/* -------------------------------------------------------------------------- */
+	/*                                  Music                                     */
+	/* -------------------------------------------------------------------------- */
+	if (backgroundMusicOn) backgroundSnd.setVolume(0.2f);
+	else backgroundSnd.setVolume(0.0f);
+
+	/* -------------------------------------------------------------------------- */
+	/*                                  Cameras                                   */
+	/* -------------------------------------------------------------------------- */
+	if (!activeCam) return;
+
+	/* -------------------------------------------------------------------------- */
 	/*                           Draw Terrain and Lander                          */
 	/* -------------------------------------------------------------------------- */
-	cam.begin();
+
+
+	activeCam->begin();
 	ofPushMatrix();
 	ofEnableLighting();              // shaded mode
 	mars.drawFaces();
 	ofMesh mesh;
 	if (bLanderLoaded) {
 		lander.drawFaces();
+		if (landerLightOn) {
+			landerLight.setPosition(landerPos.x, landerPos.y + 2, landerPos.z);
+			ofSetColor(ofColor::lightCoral);
+			landerLight.lookAt(ofVec3f(landerPos.x, 2.0, landerPos.z));
+			ofDrawSphere(landerLight.getPosition(), 0.4);
+		}
+		 
 		if (!bTerrainSelected) drawAxis(lander.getPosition());
 		if (bDisplayBBoxes) {
 			ofNoFill();
@@ -396,7 +536,7 @@ void ofApp::draw() {
 	// begin drawing in the camera
 	//
 	shader.begin();
-	cam.begin();
+	//activeCam->begin();
 
 	// draw particle emitter here..
 	//
@@ -411,7 +551,7 @@ void ofApp::draw() {
 
 	//  end drawing in the camera
 	// 
-	cam.end();
+	//activeCam->end();
 	shader.end();
 
 	ofDisablePointSprites();
@@ -446,14 +586,14 @@ void ofApp::draw() {
 	// }
 
 	ofPopMatrix();
-	cam.end();
+	activeCam->end();
 
 	/* -------------------------------------------------------------------------- */
 	/*                                   Draw UI                                  */
 	/* -------------------------------------------------------------------------- */
 	glDepthMask(false);
 	if (!bHide) gui.draw();
-	if (bAGL) ofDrawBitmapString("Altitude: " + ofToString(altitude, 2), 15 * 2, 45 * 2);
+	if (bAGL) ofDrawBitmapString("Altitude: " + ofToString(altitude, 2), 15 * 2, 60 * 2);
 	glDepthMask(true);
 }
 
@@ -486,6 +626,10 @@ void ofApp::drawAxis(ofVec3f location) {
 
 
 void ofApp::keyPressed(int key) {
+
+	//Log key press
+	ofLogNotice() << "Key pressed: " << key;
+
 	if (key == ' ') {
 		thrust = true;
 	}
@@ -502,18 +646,53 @@ void ofApp::keyPressed(int key) {
     right = true;
   }
 
+  if (key == '1') {
+	  switchCam(1);
+	  // camName = "Fixed Position Camera (1)";
+		camName.set("Fixed Position Camera (1)");
+  } else if (key == '2') {
+	  switchCam(2);
+	  // camName = "Tracking Camera (2)";
+		camName.set("Tracking Camera (2)");
+		trackCam.setPosition(lander.getPosition().x, lander.getPosition().y + 20, lander.getPosition().z + 45);
+		trackCam.lookAt(lander.getPosition());
+  } else if (key == '3') {
+	  switchCam(3);
+	  // camName = "Lander Camera (3)";
+		camName.set("Lander Camera (3)");
+		landerCam.setPosition(lander.getPosition().x, lander.getPosition().y + 50, lander.getPosition().z);
+		landerCam.lookAt(lander.getPosition());
+  }
+	else if (key == '4') {
+		switchCam(4);
+		// camName = "Cabin Camera (4)";
+		camName.set("Cabin Camera (4)");
+		cabinCam.setPosition(lander.getPosition().x, lander.getPosition().y + 10, lander.getPosition().z + 10);
+		cabinCam.lookAt(lander.getPosition() + glm::vec3(0, 0, 45));
+	}
+
+  //use Dynamic cast for easy camera when it is under camera pointer
+  ofEasyCam * easy = dynamic_cast<ofEasyCam *>(activeCam);
+
 	switch (key) {
 	case 'A':
 	case 'a':
 		landerLightOn = !landerLightOn;
+		break;
 	case 'B':
 	case 'b':
 		bDisplayBBoxes = !bDisplayBBoxes;
 		break;
 	case 'C':
 	case 'c':
-		if (cam.getMouseInputEnabled()) cam.disableMouseInput();
-		else cam.enableMouseInput();
+		if (easy) {
+			if (easy->getMouseInputEnabled())
+				easy->disableMouseInput();
+			else
+				easy->enableMouseInput();
+			cout << mainCam.getPosition() << endl;
+			cout << mainCam.getGlobalPosition() << endl;
+		}
 		break;
 	case 'F':
 	case 'f':
@@ -527,12 +706,17 @@ void ofApp::keyPressed(int key) {
 	case 'l':
 		bDisplayLeafNodes = !bDisplayLeafNodes;
 		break;
+	case 'M':
+	case 'm':
+		backgroundMusicOn = !backgroundMusicOn;
+		break;
 	case 'O':
 	case 'o':
 		bDisplayOctree = !bDisplayOctree;
 		break;
+
 	case 'r':
-		cam.reset();
+		if (activeCam) activeCam->resetTransform();
 		break;
 	case 's':
 		savePicture();
@@ -552,11 +736,13 @@ void ofApp::keyPressed(int key) {
 		break;
 	case 'w':
 		toggleWireframeMode();
-		break;
+		break;	
 	case OF_KEY_ALT:
-		cam.enableMouseInput();
-		bAltKeyDown = true;
-		break;
+		 if (easy) {                   // ← check for nullptr
+            easy->disableMouseInput();
+        }
+        bAltKeyDown = false;
+        break;
 	case OF_KEY_CONTROL:
 		bCtrlKeyDown = true;
 		break;
@@ -567,6 +753,7 @@ void ofApp::keyPressed(int key) {
 	default:
 		break;
 	}
+
 }
 
 void ofApp::toggleWireframeMode() {
@@ -585,23 +772,26 @@ void ofApp::keyReleased(int key) {
 	if (key == ' ') {
 		thrust = false;
 	}
-	if (key == OF_KEY_UP || key == 'w' || key == 'W') {
+	if (key == OF_KEY_UP) {
     forward = false;
   }
-  if (key == OF_KEY_DOWN || key == 's' || key == 'S') {
+  if (key == OF_KEY_DOWN) {
     backward = false;
   }
-  if (key == OF_KEY_LEFT || key == 'a' || key == 'A') {
+  if (key == OF_KEY_LEFT) {
     left = false;
   }
-  if (key == OF_KEY_RIGHT || key == 'd' || key == 'D') {
+  if (key == OF_KEY_RIGHT) {
     right = false;
   }
 
+  ofEasyCam * easy = dynamic_cast<ofEasyCam *>(activeCam);
 	switch (key) {
 	
 	case OF_KEY_ALT:
-		cam.disableMouseInput();
+		if (easy) {
+			easy->disableMouseInput();
+		}
 		bAltKeyDown = false;
 		break;
 	case OF_KEY_CONTROL:
@@ -626,15 +816,19 @@ void ofApp::mouseMoved(int x, int y ){
 
 //--------------------------------------------------------------
 void ofApp::mousePressed(int x, int y, int button) {
-	// if moving camera, don't allow mouse interaction
-	//
-	if (cam.getMouseInputEnabled()) return;
+
+	if (dynamic_cast<ofEasyCam *>(activeCam)) {
+		return; // EasyCam handles its own mouse input
+	}
+
+	//Update Lander Camera look at target where the mousepressed
+	//landerCam.lookAt(glm::vec3(x, y, 0));
 
 	// if rover is loaded, test for selection
 	//
 	if (bLanderLoaded) {
-		glm::vec3 origin = cam.getPosition();
-		glm::vec3 mouseWorld = cam.screenToWorld(glm::vec3(mouseX, mouseY, 0));
+		glm::vec3 origin = activeCam->getPosition();
+		glm::vec3 mouseWorld = activeCam->screenToWorld(glm::vec3(mouseX, mouseY, 0));
 		glm::vec3 mouseDir = glm::normalize(mouseWorld - origin);
 
 		ofVec3f min = lander.getSceneMin() + lander.getPosition();
@@ -644,7 +838,7 @@ void ofApp::mousePressed(int x, int y, int button) {
 		bool hit = bounds.intersect(Ray(Vector3(origin.x, origin.y, origin.z), Vector3(mouseDir.x, mouseDir.y, mouseDir.z)), 0, 10000);
 		if (hit) {
 			bLanderSelected = true;
-			mouseDownPos = getMousePointOnPlane(lander.getPosition(), cam.getZAxis());
+			mouseDownPos = getMousePointOnPlane(lander.getPosition(), activeCam->getZAxis());
 			mouseLastPos = mouseDownPos;
 			bInDrag = true;
 		}
@@ -659,9 +853,12 @@ void ofApp::mousePressed(int x, int y, int button) {
 }
 
 bool ofApp::raySelectWithOctree(ofVec3f &pointRet) {
+
+	if (!activeCam) return false;
+
 	ofVec3f mouse(mouseX, mouseY);
-	ofVec3f rayPoint = cam.screenToWorld(mouse);
-	ofVec3f rayDir = rayPoint - cam.getPosition();
+	ofVec3f rayPoint = activeCam->screenToWorld(mouse);
+	ofVec3f rayDir = rayPoint - activeCam->getPosition();
 	rayDir.normalize();
 	Ray ray = Ray(Vector3(rayPoint.x, rayPoint.y, rayPoint.z),
 		Vector3(rayDir.x, rayDir.y, rayDir.z));
@@ -685,14 +882,18 @@ bool ofApp::raySelectWithOctree(ofVec3f &pointRet) {
 void ofApp::mouseDragged(int x, int y, int button) {
 
 	// if moving camera, don't allow mouse interaction
-	//
-	if (cam.getMouseInputEnabled()) return;
+	//ofEasyCam * easy = dynamic_cast<ofEasyCam *>(activeCam);
+	//if ((easy && easy->getMouseInputEnabled())) return;
+
+	 if (dynamic_cast<ofEasyCam *>(activeCam)) {
+		return;
+	}
 
 	if (bInDrag) {
 
 		glm::vec3 landerPos = lander.getPosition();
 
-		glm::vec3 mousePos = getMousePointOnPlane(landerPos, cam.getZAxis());
+		glm::vec3 mousePos = getMousePointOnPlane(landerPos, activeCam->getZAxis());
 		glm::vec3 delta = mousePos - mouseLastPos;
 	
 		landerPos += delta;
@@ -716,7 +917,7 @@ void ofApp::mouseDragged(int x, int y, int button) {
 		}
 		else {
 			cout << "OK" << endl;
-		}*/
+		*/
 
 
 	}
@@ -728,6 +929,9 @@ void ofApp::mouseDragged(int x, int y, int button) {
 
 //--------------------------------------------------------------
 void ofApp::mouseReleased(int x, int y, int button) {
+	if (dynamic_cast<ofEasyCam *>(activeCam)) {
+		return;
+	}
 	bInDrag = false;
 }
 
@@ -761,6 +965,8 @@ void ofApp::gotMessage(ofMessage msg){
 }
 
 
+
+/*
 
 //--------------------------------------------------------------
 // setup basic ambient lighting in GL  (for now, enable just 1 light)
@@ -798,7 +1004,8 @@ void ofApp::initLightingAndMaterials() {
 	glEnable(GL_LIGHT0);
 //	glEnable(GL_LIGHT1);
 	glShadeModel(GL_SMOOTH);
-} 
+}
+*/
 
 void ofApp::savePicture() {
 	ofImage picture;
@@ -815,7 +1022,7 @@ void ofApp::savePicture() {
 void ofApp::dragEvent2(ofDragInfo dragInfo) {
 
 	ofVec3f point;
-	mouseIntersectPlane(ofVec3f(0, 0, 0), cam.getZAxis(), point);
+	mouseIntersectPlane(ofVec3f(0, 0, 0), activeCam->getZAxis(), point);
 	if (lander.loadModel(dragInfo.files[0])) {
 		lander.setScaleNormalization(false);
 //		lander.setScale(.1, .1, .1);
@@ -834,8 +1041,8 @@ void ofApp::dragEvent2(ofDragInfo dragInfo) {
 
 bool ofApp::mouseIntersectPlane(ofVec3f planePoint, ofVec3f planeNorm, ofVec3f &point) {
 	ofVec2f mouse(mouseX, mouseY);
-	ofVec3f rayPoint = cam.screenToWorld(glm::vec3(mouseX, mouseY, 0));
-	ofVec3f rayDir = rayPoint - cam.getPosition();
+	ofVec3f rayPoint = activeCam->screenToWorld(glm::vec3(mouseX, mouseY, 0));
+	ofVec3f rayDir = rayPoint - activeCam->getPosition();
 	rayDir.normalize();
 	return (rayIntersectPlane(rayPoint, rayDir, planePoint, planeNorm, point));
 }
@@ -868,9 +1075,9 @@ void ofApp::dragEvent(ofDragInfo dragInfo) {
 
 				// Setup our rays
 				//
-		glm::vec3 origin = cam.getPosition();
-		glm::vec3 camAxis = cam.getZAxis();
-		glm::vec3 mouseWorld = cam.screenToWorld(glm::vec3(mouseX, mouseY, 0));
+		glm::vec3 origin = activeCam->getPosition();
+		glm::vec3 camAxis = activeCam->getZAxis();
+		glm::vec3 mouseWorld = activeCam->screenToWorld(glm::vec3(mouseX, mouseY, 0));
 		glm::vec3 mouseDir = glm::normalize(mouseWorld - origin);
 		float distance;
 
@@ -903,11 +1110,14 @@ void ofApp::dragEvent(ofDragInfo dragInfo) {
 //  return intersection point.   (package code above into function)
 //
 glm::vec3 ofApp::getMousePointOnPlane(glm::vec3 planePt, glm::vec3 planeNorm) {
+	ofEasyCam * easy = dynamic_cast<ofEasyCam *>(activeCam);
+
+	if (!activeCam) return glm::vec3(0, 0, 0);
 	// Setup our rays
 	//
-	glm::vec3 origin = cam.getPosition();
-	glm::vec3 camAxis = cam.getZAxis();
-	glm::vec3 mouseWorld = cam.screenToWorld(glm::vec3(mouseX, mouseY, 0));
+	glm::vec3 origin = activeCam->getPosition();
+	glm::vec3 camAxis = activeCam->getZAxis();
+	glm::vec3 mouseWorld = activeCam->screenToWorld(glm::vec3(mouseX, mouseY, 0));
 	glm::vec3 mouseDir = glm::normalize(mouseWorld - origin);
 	float distance;
 
@@ -992,4 +1202,22 @@ void ofApp::loadExplosionVbo() {
 	explosionVBO.clear();
 	explosionVBO.setVertexData(&points[0], total, GL_STATIC_DRAW);
 	explosionVBO.setNormalData(&sizes[0], total, GL_STATIC_DRAW);
+}
+
+//Swiching between cameras
+void ofApp::switchCam(int n) {
+
+	ofEasyCam * easy = dynamic_cast<ofEasyCam *>(activeCam);
+	if (easy) easy->disableMouseInput();
+
+	// enable only the selected one
+	if (n == 1) {
+		activeCam = &mainCam;
+		dynamic_cast<ofEasyCam *>(activeCam)->enableMouseInput();
+	}
+	if (n == 2) activeCam = &trackCam;
+	if (n == 3) activeCam = &landerCam;
+	if (n == 4) activeCam = &cabinCam;
+
+	currentCam = n;
 }
