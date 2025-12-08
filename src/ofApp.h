@@ -43,7 +43,9 @@ class ofApp : public ofBaseApp{
 		void loadVbo();
 		void loadExplosionVbo();
 		void switchCam(int camNum);
-
+		bool inSite(ofLight& site, glm::vec3 landingPos, float angle, float radius);
+		void checkLandingPosition(glm::vec3 landingPos);
+		void drawLandingRing(glm::vec3 pos, float radius);
 
 		ofxAssimpModelLoader mars, lander;
 		Box boundingBox, landerBounds;
@@ -54,7 +56,6 @@ class ofApp : public ofBaseApp{
 		TreeNode selectedNode;
 		glm::vec3 mouseDownPos, mouseLastPos;
 		bool bInDrag = false;
-
 
 		ofxIntSlider numLevels;
 		ofxPanel gui;
@@ -140,7 +141,7 @@ class ofApp : public ofBaseApp{
 		ofShader shader;
 
 		// Light
-		ofLight keyLight, fillLight, rimLight, landerLight;
+		ofLight keyLight, fillLight, rimLight, landerLight, siteLight, siteLight2, siteLight3;
 
 		//images
 		ofImage backgroundImg;
@@ -153,4 +154,8 @@ class ofApp : public ofBaseApp{
 		ofCamera trackCam, landerCam, cabinCam;
 		ofCamera * activeCam = nullptr;
 		int currentCam = 1; 
+
+		// Landing sites
+		glm::vec3 site, site2, site3;
+		float landingRadius;
 };

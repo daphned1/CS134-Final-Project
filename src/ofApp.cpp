@@ -115,6 +115,11 @@ void ofApp::setup(){
 	tforce = new TurbulenceForce(ofVec3f(-10, -10, -10), ofVec3f(10, 10, 10));
 	radialForce = new ImpulseRadialForce(10);
 
+	site = glm::vec3(124, 28, 94);
+	site2 = glm::vec3(-62, 36, 106);
+	site3 = glm::vec3(7, 19, -72);
+	landingRadius = 20;
+
 	/* -------------------------------------------------------------------------- */
 	/*                                  Emitters                                  */
 	/* -------------------------------------------------------------------------- */
@@ -187,7 +192,33 @@ void ofApp::setup(){
 	landerLight.setDiffuseColor(ofFloatColor(1.0, 0.95, 0.850));
 	landerLight.setSpecularColor(ofFloatColor(1.0, 0.95, 0.85));
 
-	
+	// Landing site light
+	siteLight.setDiffuseColor(ofFloatColor(1.0, 0.0, 0.0) * 3.0);
+	siteLight.setSpecularColor(ofFloatColor(1.0, 0.0, 0.0) * 2.0);
+	siteLight.setPosition(124, 100, 94);
+	siteLight.setSpotlight();
+	siteLight.setSpotlightCutOff(45);
+	siteLight.setSpotConcentration(15);
+	siteLight.lookAt(glm::vec3(124, 0, 94));
+	siteLight.enable();
+
+	siteLight2.setDiffuseColor(ofFloatColor(1.0, 0.0, 0.0) * 3.0);
+	siteLight2.setSpecularColor(ofFloatColor(1.0, 0.0, 0.0) * 2.0);
+	siteLight2.setPosition(-62, 50, 106);
+	siteLight2.setSpotlight();
+	siteLight2.setSpotlightCutOff(45);
+	siteLight2.setSpotConcentration(15);
+	siteLight2.lookAt(glm::vec3(-62, 0, 106));
+	siteLight2.enable();
+
+	siteLight3.setDiffuseColor(ofFloatColor(1.0, 0.0, 0.0) * 3.0);
+	siteLight3.setSpecularColor(ofFloatColor(1.0, 0.0, 0.0) * 2.0);
+	siteLight3.setPosition(7, 50, -72);
+	siteLight3.setSpotlight();
+	siteLight3.setSpotlightCutOff(45);
+	siteLight3.setSpotConcentration(15);
+	siteLight3.lookAt(glm::vec3(7, 0, -72));
+	siteLight3.enable();
 	
 	/* -------------------------------------------------------------------------- */
 	/*                                 Cameras                                    */
@@ -398,11 +429,12 @@ void ofApp::update() {
 		else if (glm::length(landerVel) < 3) {
 			// Smooth landing
 			cout << "Smooth landing." << endl;
+			checkLandingPosition(lander.getPosition());
 			successLandSnd.play();
 		}
 
 		// 1. Find lander box center
-			glm::vec3 landerBox = glm::vec3(bounds.center().x(), bounds.center().y(), bounds.center().z());
+		glm::vec3 landerBox = glm::vec3(bounds.center().x(), bounds.center().y(), bounds.center().z());
 
 		// 2. Find nearest collided terrain box
 		glm::vec3 terrainBox;
@@ -476,7 +508,6 @@ void ofApp::draw() {
 	/*                           Draw Terrain and Lander                          */
 	/* -------------------------------------------------------------------------- */
 
-
 	activeCam->begin();
 	ofPushMatrix();
 	ofEnableLighting();              // shaded mode
@@ -522,6 +553,14 @@ void ofApp::draw() {
 		}
 	}
 	if (bTerrainSelected) drawAxis(ofVec3f(0, 0, 0));
+
+	// site = glm::vec3(124, 28, 94);
+	// site2 = glm::vec3(-62, 36, 106);
+	// site3 = glm::vec3(7, 19, -72);
+
+	drawLandingRing(glm::vec3(124, 50, 94), 20);
+	drawLandingRing(glm::vec3(-62, 36, 106), 20);
+	drawLandingRing(glm::vec3(7, 25, -72), 20);
 
 	/* -------------------------------------------------------------------------- */
 	/*                               Draw Particles                               */
@@ -1220,4 +1259,44 @@ void ofApp::switchCam(int n) {
 	if (n == 4) activeCam = &cabinCam;
 
 	currentCam = n;
+}
+
+bool ofApp::inSite(ofLight& site, glm::vec3 landingPos, float angle, float radius) {
+	glm::vec3 sitePos = site.getPosition();
+	glm::vec3 dir = glm::normalize(site.getLookAtDir());
+	glm::vec3 landerDir = glm::normalize(landingPos - sitePos);
+
+	float distance = glm::length(glm::vec3(landerDir.x, landerDir.y, landerDir.z));
+	if (distance > radius) {
+		return false;
+	}
+
+	float delta = glm::degrees(glm::acos(glm::dot(dir, glm::normalize(landerDir))));
+	return delta <= angle;
+}
+
+void ofApp::checkLandingPosition(glm::vec3 landingPos) {
+	float radius = 20.0f;
+
+	if (inSite(siteLight, landerPos, 45, radius)) {
+		cout << "Lander at site 1" << endl;
+	}
+	if (inSite(siteLight2, landerPos, 45, radius)) {
+		cout << "Lander at site 2" << endl;
+	}
+	if (inSite(siteLight3, landerPos, 45, radius)) {
+		cout << "Lander at site 3" << endl;
+	}
+}
+
+void ofApp::drawLandingRing(glm::vec3 pos, float radius) {
+	ofPushMatrix();
+	ofTranslate(pos);
+	ofRotateDeg(-90, 1, 0, 0);
+	ofSetLineWidth(7);
+	ofSetColor(ofColor::red);
+	ofNoFill();
+	ofDrawCircle(0, 0, radius);
+
+	ofPopMatrix();
 }
