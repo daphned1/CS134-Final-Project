@@ -1023,10 +1023,6 @@ void ofApp::mousePressed(int x, int y, int button) {
 		ofVec3f p;
 		bool selected = raySelectWithOctree(p);
 	}
-
-	if (button == OF_MOUSE_BUTTON_RIGHT) {
-		setCameraTarget();
-	}
 }
 
 bool ofApp::raySelectWithOctree(ofVec3f &pointRet) {
